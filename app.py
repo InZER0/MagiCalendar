@@ -248,11 +248,18 @@ def run_bot():
             pass
         time.sleep(1)
 
-# 앱 시작할 때 봇 자동 실행
-if 'bot_started' not in st.session_state:
-    st.session_state.bot_started = True
+# 2. 🔥 핵심: 앱 전체에서 딱 한 번만 실행되도록 잠금장치 걸기
+@st.cache_resource
+def start_bot_once():
+    # 백그라운드 스레드에서 run_bot을 실행 (메인 웹 화면이 멈추지 않게 함)
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
+    return "Bot is running globally!"
+
+# 3. 봇 실행 호출
+# 사용자가 탭을 10개 열어도, 이 함수는 캐싱 덕분에 최초 1번만 실행됩니다.
+start_bot_once()
+
 
 st.set_page_config(page_title="✨ MagiCalendar", layout="wide")
 
