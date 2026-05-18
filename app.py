@@ -1,9 +1,12 @@
+%%writefile app.py
 import os
 
 import streamlit as st
 import google.generativeai as genai
 import pandas as pd
 import json, smtplib, ssl, io, requests
+import time
+import threading
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -11,9 +14,9 @@ from email.mime.text import MIMEText
 # --- [내장 API 키 설정] ---
 
 GMAIL_ADDRESS = "projectmagicalendar@gmail.com"
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
-TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+GMAIL_APP_PASSWORD = st.secrets["GMAIL_APP_PASSWORD"]
+TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 
 def send_gmail(email_list, events_for_email):
     port = 587
@@ -217,7 +220,40 @@ def send_telegram(events_for_telegram, chat_id):
     except Exception as e:
         st.error(f"텔레그램 오류: {e}")
         return False
+import threading
 
+def run_bot():
+    offset = 0
+    while True:
+        try:
+            url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/getUpdates"
+            res = requests.get(url, params={"offset": offset, "timeout": 30})
+            updates = res.json().get("result", [])
+            for update in updates:
+                offset = update["update_id"] + 1
+                msg = update.get("message", {})
+                if not msg:
+                    continue
+                text = msg.get("text", "")
+                chat_id = msg["chat"]["id"]
+                if text == "/myid":
+                    requests.post(
+                        f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage",
+                        json={
+                            "chat_id": chat_id,
+                            "text": f"🆔 당신의 Chat ID는:\n`{chat_id}`\n\nMagiCalendar에 입력하세요!",
+                            "parse_mode": "Markdown"
+                        }
+                    )
+        except:
+            pass
+        time.sleep(1)
+
+# 앱 시작할 때 봇 자동 실행
+if 'bot_started' not in st.session_state:
+    st.session_state.bot_started = True
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
 
 st.set_page_config(page_title="✨ MagiCalendar", layout="wide")
 
@@ -601,13 +637,13 @@ if st.session_state.events:
                     st.markdown("""
                     1. 텔레그램에 접속 후 '대화'->'검색'창
                     2. **'@PROJECTMagicalendar_bot'** 을 검색
-                    3. '봇 시작하기' 를 누르세요.  
+                    3. '봇 시작하기' 를 누르세요.
                     4. '/myid' 를 입력하면 봇이 Chat ID 숫자를 알려줘요!
                     5. 받은 숫자를 위 Chat ID 입력창에 넣으면 돼요.
                     """)
                     st.code("@PROJECTMagicalendar_bot", language=None)
                     st.markdown(
-                        "<div style='text-align: right;'>✴️ 봇 아이디의 오른쪽 버튼을 누르면 복사가 돼요!☝️</div>", 
+                        "<div style='text-align: right;'>✴️ 봇 아이디의 오른쪽 버튼을 누르면 복사가 돼요!☝️</div>",
                         unsafe_allow_html=True
                     )
     if st.button("🔔 알림 예약 완료"):
