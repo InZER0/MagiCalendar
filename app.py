@@ -647,7 +647,7 @@ if st.session_state.events:
                     4. '/myid' 를 입력하면 봇이 Chat ID 숫자를 알려줘요!
                     5. 받은 숫자를 위 Chat ID 입력창에 넣으면 돼요.
                     """)
-                    st.code("MagiCalendarBot", language=None)
+                    st.code("@MagiCalendarBot", language=None)
                     st.markdown(
                         "<div style='text-align: right;'>✴️ 봇 아이디의 오른쪽 버튼을 누르면 복사가 돼요!☝️</div>",
                         unsafe_allow_html=True
