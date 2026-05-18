@@ -1,0 +1,657 @@
+import os
+
+import streamlit as st
+import google.generativeai as genai
+import pandas as pd
+import json, smtplib, ssl, io, requests
+from datetime import datetime
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+
+# --- [내장 API 키 설정] ---
+
+GMAIL_ADDRESS = "projectmagicalendar@gmail.com"
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+GMAIL_APP_PASSWORD = os.environ.get('GMAIL_APP_PASSWORD')
+TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN')
+
+def send_gmail(email_list, events_for_email):
+    port = 587
+    smtp_server = "smtp.gmail.com"
+    sender_email = GMAIL_ADDRESS
+    password = GMAIL_APP_PASSWORD
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = "[MagiCalendar] 일정 알림 확인"
+    msg["From"] = f"MagiCalendar <{GMAIL_ADDRESS}>"
+    msg["To"] = ", ".join(email_list)
+    msg['X-Priority'] = '3'
+    msg['X-Mailer'] = 'Python/MagiCalendar'
+
+    # Plain text 버전 (스팸 방지 필수)
+    plain_lines = ["MagiCalendar 일정 알림\n"]
+    for ed in events_for_email:
+        ev = ed['event_data']
+        dt = ed['scheduled_datetime']
+        plain_lines.append(
+            f"- {ev.get('event')}\n"
+            f"  날짜: {ev.get('date')} {ev.get('time')}\n"
+            f"  장소: {ev.get('place')}\n"
+            f"  참여자: {ev.get('participants')}\n"
+            f"  알림 시각: {dt.strftime('%Y년 %m월 %d일 %H시 %M분')}\n"
+        )
+    plain_lines.append("\nMagiCalendar와 함께 성공적인 하루를 보내세요!")
+    plain_text = "\n".join(plain_lines)
+
+    # HTML 버전
+    event_rows = ""
+    for ed in events_for_email:
+        ev = ed['event_data']
+        dt = ed['scheduled_datetime']
+        event_rows += f"""
+        <tr>
+          <td style="padding:16px; border-bottom:1px solid #eee;">
+            <p style="margin:0 0 6px 0; font-size:17px;
+               font-weight:bold; color:#2c3e50;">
+               📅 {ev.get('event', '일정명 미정')}
+            </p>
+            <p style="margin:0; font-size:14px; color:#555;">
+               🗓 {ev.get('date')} &nbsp;
+               ⏰ {ev.get('time')} &nbsp;
+               📍 {ev.get('place')} &nbsp;
+               👥 {ev.get('participants')}
+            </p>
+            <p style="margin:6px 0 0 0; font-size:13px;
+               color:#888;">
+               💬 {ev.get('summary', '')}
+            </p>
+            <p style="margin:8px 0 0 0; font-size:13px;
+               background:#f0f7ff; padding:6px 10px;
+               border-radius:6px; color:#2980b9;">
+               🔔 알림 예정:
+               {dt.strftime('%Y년 %m월 %d일 %H시 %M분')}
+            </p>
+          </td>
+        </tr>
+        """
+
+    html = f"""
+    <!DOCTYPE html>
+    <html lang="ko">
+    <head><meta charset="UTF-8"></head>
+    <body style="margin:0; padding:0;
+        background-color:#f5f5f5;
+        font-family: Arial, sans-serif;">
+      <table width="100%" cellpadding="0"
+          cellspacing="0"
+          style="background:#f5f5f5; padding:30px 0;">
+        <tr><td align="center">
+          <table width="600" cellpadding="0"
+              cellspacing="0"
+              style="background:#ffffff;
+              border-radius:12px;
+              box-shadow:0 2px 8px rgba(0,0,0,0.08);
+              overflow:hidden;">
+
+            <!-- 헤더 -->
+            <tr>
+              <td style="background:linear-gradient(
+                  135deg, #667eea, #764ba2);
+                  padding:28px 24px; text-align:center;">
+                <h1 style="margin:0; color:#ffffff;
+                    font-size:24px;">
+                    ✨ MagiCalendar
+                </h1>
+                <p style="margin:6px 0 0 0;
+                    color:rgba(255,255,255,0.85);
+                    font-size:14px;">
+                    AI 일정 알림 서비스
+                </p>
+              </td>
+            </tr>
+
+            <!-- 안내 문구 -->
+            <tr>
+              <td style="padding:24px 24px 8px 24px;">
+                <p style="margin:0; font-size:15px;
+                    color:#333;">
+                    안녕하세요! 아래 일정 알림을
+                    확인해주세요. 🗓
+                </p>
+              </td>
+            </tr>
+
+            <!-- 일정 목록 -->
+            <tr>
+              <td style="padding:8px 24px;">
+                <table width="100%" cellpadding="0"
+                    cellspacing="0"
+                    style="border:1px solid #eee;
+                    border-radius:8px;
+                    overflow:hidden;">
+                  {event_rows}
+                </table>
+              </td>
+            </tr>
+
+            <!-- 푸터 -->
+            <tr>
+              <td style="padding:24px;
+                  text-align:center;
+                  border-top:1px solid #eee;
+                  margin-top:16px;">
+                <p style="margin:0; font-size:13px;
+                    color:#aaa;">
+                    MagiCalendar와 함께
+                    성공적인 하루를 보내세요! 🪄
+                </p>
+              </td>
+            </tr>
+
+          </table>
+        </td></tr>
+      </table>
+    </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(plain_text, "plain", "utf-8"))
+    msg.attach(MIMEText(html, "html", "utf-8"))
+
+    context = ssl.create_default_context()
+    try:
+        with smtplib.SMTP(smtp_server, port) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(GMAIL_ADDRESS, GMAIL_APP_PASSWORD)
+
+            for email in email_list:
+                msg = MIMEMultipart("alternative")
+                msg["Subject"] = "[MagiCalendar] 일정 알림 확인"
+                msg["From"] = f"MagiCalendar <{GMAIL_ADDRESS}>"
+                msg["To"] = email
+                msg['X-Priority'] = '3'
+                msg['X-Mailer'] = 'Python/MagiCalendar'
+                msg.attach(MIMEText(plain_text, "plain", "utf-8"))
+                msg.attach(MIMEText(html, "html", "utf-8"))
+                server.sendmail(GMAIL_ADDRESS, email, msg.as_string())
+        return True
+    except Exception as e:
+        st.error(f"오류: {e}")
+        return False
+
+def send_telegram(events_for_telegram, chat_id):
+    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    message = (
+        "✨ *MagiCalendar 일정 알림*\n"
+        "─────────────────────\n"
+        "📋 아래 일정을 확인해주세요!\n\n"
+    )
+
+    for ed in events_for_telegram:
+        ev = ed['event_data']
+        dt = ed['scheduled_datetime']
+
+        message += (
+            f"📅 *{ev.get('event', '일정명 미정')}*\n"
+            f"🗓 날짜: {ev.get('date', '미정')} "
+            f"{ev.get('time', '미정')}\n"
+            f"📍 장소: {ev.get('place', '미정')}\n"
+            f"👥 참여자: {ev.get('participants', '미정')}\n"
+            f"💬 {ev.get('summary', '')}\n"
+            f"🔔 알림 시각: "
+            f"{dt.strftime('%Y년 %m월 %d일 %H시 %M분')}\n"
+            "─────────────────────\n\n"
+        )
+
+    message += "🪄 MagiCalendar와 함께 성공적인 하루를 보내세요!"
+
+    try:
+        response = requests.post(url, json={
+            "chat_id": chat_id,
+            "text": message,
+            "parse_mode": "Markdown"
+        })
+        return response.status_code == 200
+    except Exception as e:
+        st.error(f"텔레그램 오류: {e}")
+        return False
+
+
+st.set_page_config(page_title="✨ MagiCalendar", layout="wide")
+
+# --- UI Compact Styling ---
+st.markdown("""
+<style>
+    /* 위아래 간격 줄이기 */
+    [data-testid='stVerticalBlock'] { gap: 0.1rem; }
+    div[data-testid='column'] { padding: 0px !important; }
+    /* 입력창 글자 진하게 및 검정색 */
+    input { color: #000000 !important; font-weight: bold !important; }
+    /* 위젯 크기 최적화 */
+    div[data-testid='stNumberInput'] { max-width: 120px; }
+    div[data-testid='stDateInput'] { max-width: 160px; }
+    .stCheckbox { margin-bottom: -15px; }
+</style>
+""", unsafe_allow_html=True)
+
+if 'events' not in st.session_state: st.session_state.events = []
+if 'metadata' not in st.session_state: st.session_state.metadata = {}
+if 'selected_notifications' not in st.session_state: st.session_state.selected_notifications = {}
+
+# --- Sidebar ---
+
+st.sidebar.markdown(
+    """
+    <h1 style='text-align: center; font-size: 35px; font-weight: bold;adding-left: 5px;'>
+        ✨MagiCalendar
+    </h1>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.divider()
+
+st.sidebar.markdown(
+    """
+    <div style="text-align: center; font-size: 29px; font-weight: bold; margin-bottom: 15px;">
+        ⚙️Developers
+    </div>
+    <div style="text-align: left; font-size: 17px; font-weight: bold; line-height: 2.5; padding-left: 5px;">
+        💻첨단융합학부 202670690 홍인영<br>
+        🛠️첨단융합학부 202670643 이준성<br>
+    <div>
+    <div style="text-align: left; font-size: 16px; font-weight: bold; line-height: 2.5; padding-left: 2px;">
+        💡첨단IT자율전공 202628176 이혁준
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+st.sidebar.divider()
+
+# 하단 정보 섹션 (중앙 정렬 유지)
+st.sidebar.markdown(
+    """
+    <div style="
+        background-color: rgba(28, 131, 225, 0.1);
+        color: #004280;
+        padding: 10px;
+        border-radius: 5px;
+        text-align: center;
+        font-size: 18px;
+        font-weight: bold
+    ">
+        인공지능과디지털사고 (054)
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+# --- Main ---
+st.title("✨MagiCalendar : AI 일정 관리")
+uploaded_file = st.file_uploader("📂 카카오톡 대화내역 CSV 업로드", type="csv")
+
+if st.button("✨ AI 일정 분석 시작!", type="primary"):
+    if uploaded_file:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel('gemini-3.1-flash-lite')
+        df = pd.read_csv(uploaded_file)
+        content_str = df.to_string()
+        prompt = f"""
+아래는 카카오톡 대화 CSV 데이터야.
+분석해서 반드시 아래 JSON 구조로만 응답해.
+다른 텍스트, 마크다운, 코드블록 절대 금지.
+모든 텍스트 값은 반드시 한국어로 작성해.
+
+{{
+  "events": [
+    {{
+      "event": "일정명 (한국어)",
+      "date": "YYYY-MM-DD (불명확하면 미정)",
+      "time": "HH:MM (불명확하면 미정)",
+      "place": "장소 (대화에서 유추 가능하면 반드시 채워넣어, 불명확할 때만 미정)",
+      "participants": "참여자 (대화에 등장하는 모든 이름 추출, 없으면 미정)",
+      "importance": "높음 또는 보통 또는 낮음",
+      "summary": "해당 일정과 관련된 대화 내용을 2~3문장으로 자세히 요약 (한국어)"
+    }}
+  ],
+  "metadata": {{
+    "global_summary": "전체 대화를 5줄 이상 자세하게 한국어로 요약",
+    "links": ["url1"],
+    "phones": ["010-0000-0000"],
+    "emails": ["xxx@xxx.com"],
+    "keywords": ["중요한 단어만 추출 (일반적인 단어 제외, 고유명사/장소/인물 위주)"]
+  }}
+}}
+
+데이터:
+{content_str[:20000]}
+"""
+        with st.spinner("AI 분석 중..."):
+            response = model.generate_content(prompt, generation_config={"response_mime_type": "application/json"})
+            res = json.loads(response.text)
+            st.session_state.events = res.get('events', [])
+            st.session_state.metadata = res.get('metadata', {})
+
+if st.session_state.events:
+    # 섹션 1: 요약
+    st.header("💬 AI 대화 요약")
+    st.info(st.session_state.metadata.get('global_summary', '요약 정보 없음'))
+
+    # 섹션 2: 일정 목록
+    st.header(f"📅 발견된 일정 {len(st.session_state.events)}개")
+
+    # Reset selected_notifications at the start of event display loop
+    st.session_state.selected_notifications = {}
+
+    for i, ev in enumerate(st.session_state.events):
+        event_key = f"ev_{i}"
+        with st.container():
+            # 줄 1: 체크박스 + 일정 정보
+            col_chk, col_info = st.columns([0.3, 9])
+            with col_chk:
+                # Initialize checkbox state if not present
+                if f"chk_{event_key}" not in st.session_state:
+                    st.session_state[f"chk_{event_key}"] = False
+                notify = st.checkbox("", key=f"chk_{event_key}")
+            with col_info:
+                st.subheader(f"**{i+1}. {ev.get('event', '일정명 미정')}**")
+
+                date_str = ev.get('date', '미정')
+                time_str = ev.get('time', '미정')
+                place_str = ev.get('place', '미정')
+                participants_str = ev.get('participants', '미정')
+
+                event_info_html = "<p style='font-size:20px; margin:1px'>"
+                if date_str != '미정':
+                    event_info_html += f"📅 {date_str} &nbsp;"
+                if time_str != '미정':
+                    event_info_html += f"⏰ {time_str} &nbsp;"
+                if place_str != '미정':
+                    event_info_html += f"📍 {place_str} &nbsp;"
+                if participants_str != '미정':
+                    event_info_html += f"👥 {participants_str}"
+                event_info_html += "</p>"
+                st.markdown(event_info_html, unsafe_allow_html=True)
+
+            # 줄 2: 알림 시각 설정 (체크했을 때만)
+            if notify:
+                default_date = datetime.now().date()
+                default_hour = datetime.now().hour
+                default_minute = datetime.now().minute
+
+                event_date_str = ev.get('date')
+                event_time_str = ev.get('time')
+
+                if event_date_str and event_date_str != '미정':
+                    try:
+                        default_date = datetime.strptime(event_date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        pass
+
+                if event_time_str and event_time_str != '미정':
+                    try:
+                        parsed_time = datetime.strptime(event_time_str, '%H:%M').time()
+                        default_hour = parsed_time.hour
+                        default_minute = parsed_time.minute
+                    except ValueError:
+                        pass
+
+                st.markdown("<p style='font-size:20px; font-weight:bold; margin:15px 0'>📅 알림 일정&nbsp;&nbsp;&nbsp;</p>", unsafe_allow_html=True)
+                col_d, col_h, col_ht, col_m, col_mt, col_empty = st.columns([0.55, 0.2, 0.1, 0.2, 0.1, 3.8])
+                with col_d:
+                    a_date = st.date_input("날짜",
+                        value=default_date,
+                        key=f"d_{i}",
+                        label_visibility="collapsed")
+                with col_h:
+                    a_h = st.number_input("시",
+                        min_value=0, max_value=23,
+                        value=default_hour,
+                        key=f"h_{i}",
+                        label_visibility="collapsed")
+                with col_ht:
+                    st.markdown("<p style='font-size:17px; font-weight:bold; "
+                        "padding-top:9px; margin:0'>시</p>",
+                        unsafe_allow_html=True)
+                with col_m:
+                    a_m = st.number_input("분",
+                        min_value=0, max_value=59,
+                        value=default_minute,
+                        key=f"m_{i}",
+                        label_visibility="collapsed")
+                with col_mt:
+                    st.markdown("<p style='font-size:17px; font-weight:bold; "
+                        "padding-top:9px; margin:0'>분</p>",
+                        unsafe_allow_html=True)
+                with col_empty:
+                    st.empty()
+
+                # Store selected notification if checkbox is true
+                st.session_state.selected_notifications[event_key] = {
+                    'event_data': ev,
+                    'scheduled_datetime': datetime.combine(a_date, datetime.min.replace(hour=a_h, minute=a_m).time())
+                }
+        st.divider()
+
+    # 섹션 3: 중요 정보
+    st.subheader("⚠️ 중요 정보")
+    m = st.session_state.metadata
+    t1, t2, t3, t4 = st.tabs(["🔗 링크", "📞 전화번호", "📧 이메일", "🔑 키워드"])
+    with t1:
+        links = m.get('links', [])
+        if links:
+            for l in links: st.write(l)
+        else: st.caption("발견된 링크가 없습니다.")
+    with t2:
+        phones = m.get('phones', [])
+        if phones:
+            for p in phones: st.code(p)
+        else: st.caption("발견된 전화번호가 없습니다.")
+    with t3:
+        emails = m.get('emails', [])
+        if emails:
+            for e in emails: st.code(e)
+        else: st.caption("발견된 이메일이 없습니다.")
+    with t4:
+        keywords = m.get('keywords', [])
+        if keywords:
+            st.write(", ".join([f"`{k}`" for k in keywords]))
+        else: st.caption("발견된 키워드가 없습니다.")
+
+    # 섹션 4: 다운로드
+    summary_txt = f"================================\n✨ MagiCalendar 요약본\n분석 날짜: {datetime.now().strftime('%Y-%m-%d')}\n================================\n\n"
+    summary_txt += f"[📅 발견된 일정 {len(st.session_state.events)}개]\n"
+    for i, ev in enumerate(st.session_state.events):
+        summary_txt += f"{i+1}. 일정명: {ev.get('event', '미정')}\n   날짜: {ev.get('date', '미정')}\n   시간: {ev.get('time', '미정')}\n   장소: {ev.get('place', '미정')}\n   참여자: {ev.get('participants', '미정')}\n   요약: {ev.get('summary', '미정')}\n\n"
+
+    summary_txt += "[⚠️ 중요 정보]\n🔗 링크:\n"
+    if m.get('links'):
+        for l in m['links']: summary_txt += f"  - {l}\n"
+    else: summary_txt += "  - 발견된 링크가 없습니다.\n"
+
+    summary_txt += "📞 전화번호:\n"
+    if m.get('phones'):
+        for p in m['phones']: summary_txt += f"  - {p}\n"
+    else: summary_txt += "  - 발견된 전화번호가 없습니다.\n"
+
+    summary_txt += "📧 이메일:\n"
+    if m.get('emails'):
+        for e in m['emails']: summary_txt += f"  - {e}\n"
+    else: st.session_state.metadata['emails'] = []
+
+    summary_txt += "🔑 키워드:\n"
+    if m.get('keywords'):
+        for k in m['keywords']: summary_txt += f"  - {k}\n"
+    else: summary_txt += "  - 발견된 키워드가 없습니다.\n"
+
+    summary_txt += f"\n[💬 전체 요약]\n{m.get('global_summary', '요약 정보 없음')}\n================================\n"
+
+    st.subheader("📋 분석 요약본")
+    st.code(summary_txt, language=None)
+    st.download_button("📄 요약본 TXT 다운로드", data=summary_txt.encode('utf-8-sig'), file_name=f"summary_{datetime.now().strftime('%Y%m%d')}.txt")
+
+    st.subheader("📬 알림 등록")
+
+    # 변수 초기화
+    use_email = False
+    use_telegram = False
+    target_email = ""
+    telegram_chat_id = ""
+
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    # 1. 이메일 알림 섹션
+    use_email = st.checkbox("📧 이메일 알림", value=False, key="use_email_checkbox")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+
+    if use_email:
+        # 입력란 너비를 반으로 줄이기 위해 내부 컬럼 사용
+        col_input_half, _ = st.columns([1, 2])
+        with col_input_half:
+            target_email = st.text_input(
+                "알림 받을 이메일 주소",
+                placeholder="예: abc@gmail.com, def@naver.com",
+                help="여러 명에게 보내려면 쉼표(,)로 구분해서 입력하세요",
+                key="target_email_input")
+    st.write("") # 섹션 간 간격
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+## 2. 텔레그램 알림 섹션
+    use_telegram = st.checkbox("💬 텔레그램 알림", value=False, key="use_telegram_checkbox")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    st.write("")
+    if use_telegram:
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+
+    # Chat ID 입력란 (요청하신 변수명 TELEGRAM_CHAT_ID 사용)
+        col_chatid_half, _ = st.columns([1, 2])
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        st.write("")
+        with col_chatid_half:
+            telegram_chat_id = st.text_input("Chat ID 입력", key="tg_chatid_input")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            st.write("")
+            if not telegram_chat_id:
+                # 상세 방법 (입력 시 이 부분 전체가 사라짐)
+                with st.expander("🔍 Chat ID 얻는 방법 확인하기"):
+                    st.markdown("""
+                    1. 텔레그램에 접속 후 '대화'->'검색'창
+                    2. **'@PROJECTMagicalendar_bot'** 을 검색
+                    3. '봇 시작하기' 를 누르세요.  
+                    4. '/myid' 를 입력하면 봇이 Chat ID 숫자를 알려줘요!
+                    5. 받은 숫자를 위 Chat ID 입력창에 넣으면 돼요.
+                    """)
+                    st.code("@PROJECTMagicalendar_bot", language=None)
+                    st.markdown(
+                        "<div style='text-align: right;'>✴️ 봇 아이디의 오른쪽 버튼을 누르면 복사가 돼요!☝️</div>", 
+                        unsafe_allow_html=True
+                    )
+    if st.button("🔔 알림 예약 완료"):
+        selected_notifications = st.session_state.get('selected_notifications', {})
+        selected_notifications_to_send = {
+            k: v for k, v in st.session_state.selected_notifications.items()
+            if st.session_state.get(f"chk_{k}", False)
+        }
+
+        email_list = []
+        if use_email and target_email:
+            email_list = [e.strip() for e in target_email.split(",")]
+            invalid_emails = [e for e in email_list if "@" not in e or "." not in e]
+        else:
+            invalid_emails = []
+
+        if not use_email and not use_telegram:
+            st.warning("⚠️ 이메일 알림 또는 텔레그램 알림 중 하나를 선택해주세요.")
+        elif use_email and not target_email:
+            st.error("⚠️ 이메일 주소를 입력해주세요.")
+        elif use_email and invalid_emails:
+            st.error(f"⚠️ 유효하지 않은 이메일 주소: {', '.join(invalid_emails)}")
+        elif use_telegram and (not telegram_chat_id):
+            st.error("⚠️ Chat ID를 입력해주세요.")
+        elif not selected_notifications_to_send:
+            st.warning("⚠️ 알림 받을 일정을 체크박스로 선택해주세요.")
+        else:
+            email_sent = False
+            telegram_sent = False
+
+            if use_email:
+                if send_gmail(email_list, selected_notifications_to_send.values()):
+                    email_sent = True
+                else:
+                    st.error("이메일 발송에 실패했습니다.")
+
+            if use_telegram:
+                if send_telegram(selected_notifications_to_send.values(), telegram_chat_id):
+                    telegram_sent = True
+                else:
+                    st.error("텔레그램 메시지 발송에 실패했습니다.")
+
+            if email_sent or telegram_sent:
+                st.success("✅ 알림 발송 완료!")
+                st.balloons()
+            else:
+                st.warning("알림 발송에 실패했습니다. 설정을 확인해주세요.")
