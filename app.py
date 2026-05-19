@@ -677,23 +677,25 @@ if st.session_state.events:
         elif not selected_notifications_to_send:
             st.warning("⚠️ 알림 받을 일정을 체크박스로 선택해주세요.")
         else:
-            email_sent = False
-            telegram_sent = False
+            success_count = 0
+            fail_count = 0
+            
+            for ed in selected_notifications_to_send.values():
+                try:
+                    save_alarm_to_sheets(
+                        ", ".join(email_list) if use_email else "",
+                        telegram_chat_id if use_telegram else "",
+                        ed['event_data'],
+                        ed['scheduled_datetime']
+                    )
+                    success_count += 1
+                except Exception as e:
+                    fail_count += 1
 
-            if use_email:
-                if send_gmail(email_list, selected_notifications_to_send.values()):
-                    email_sent = True
-                else:
-                    st.error("이메일 발송에 실패했습니다.")
-
-            if use_telegram:
-                if send_telegram(selected_notifications_to_send.values(), telegram_chat_id):
-                    telegram_sent = True
-                else:
-                    st.error("텔레그램 메시지 발송에 실패했습니다.")
-
-            if email_sent or telegram_sent:
-                st.success("✅ 알림 발송 완료!")
+            if success_count > 0 and fail_count == 0:
+                st.success(f"✅ {success_count}개 일정 알림이 예약됐어요!")
                 st.balloons()
+            elif success_count > 0 and fail_count > 0:
+                st.warning(f"⚠️ {success_count}개 성공, {fail_count}개 실패했어요. 다시 확인해주세요.")
             else:
-                st.warning("알림 발송에 실패했습니다. 설정을 확인해주세요.")
+                st.error("❌ 알림 예약에 실패했습니다. 다시 시도해주세요.")
