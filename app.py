@@ -101,7 +101,7 @@ def send_gmail(email_list, events_for_email):
                   padding:28px 24px; text-align:center;">
                 <h1 style="margin:0; color:#ffffff;
                     font-size:24px;">
-                    ✨ MagiCalendar
+                     MagiCalendar
                 </h1>
                 <p style="margin:6px 0 0 0;
                     color:rgba(255,255,255,0.85);
@@ -144,7 +144,7 @@ def send_gmail(email_list, events_for_email):
                 <p style="margin:0; font-size:13px;
                     color:#aaa;">
                     MagiCalendar와 함께
-                    성공적인 하루를 보내세요! 🪄
+                    좋은 하루를 보내세요!
                 </p>
               </td>
             </tr>
