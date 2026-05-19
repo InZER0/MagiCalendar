@@ -276,7 +276,7 @@ def run_bot():
             pass
         time.sleep(1)
 
-# 2. 🔥 핵심: 앱 전체에서 딱 한 번만 실행되도록 잠금장치 걸기
+# 2. 핵심: 앱 전체에서 딱 한 번만 실행되도록 잠금장치 걸기
 @st.cache_resource
 def start_bot_once():
     # 백그라운드 스레드에서 run_bot을 실행 (메인 웹 화면이 멈추지 않게 함)
