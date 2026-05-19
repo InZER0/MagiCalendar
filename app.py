@@ -6,6 +6,7 @@ import pandas as pd
 import json, smtplib, ssl, io, requests
 import time
 import threading
+import gspread
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -16,6 +17,33 @@ GMAIL_ADDRESS = "projectmagicalendar@gmail.com"
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 GMAIL_APP_PASSWORD = st.secrets["GMAIL_APP_PASSWORD"]
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
+
+from google.oauth2.service_account import Credentials
+
+def get_sheets_client():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"],
+        scopes=[
+            "https://spreadsheets.google.com/feeds",
+            "https://www.googleapis.com/auth/drive"
+        ]
+    )
+    return gspread.authorize(creds)
+
+def save_alarm_to_sheets(email, chat_id, event, alarm_dt):
+    client = get_sheets_client()
+    sheet = client.open_by_key(st.secrets["SHEETS_ID"]).sheet1
+    sheet.append_row([
+        email,
+        chat_id,
+        event.get('event'),
+        event.get('date'),
+        event.get('time'),
+        event.get('place'),
+        event.get('summary'),
+        alarm_dt.strftime('%Y-%m-%d %H:%M'),
+        "FALSE"
+    ])
 
 def send_gmail(email_list, events_for_email):
     port = 587
