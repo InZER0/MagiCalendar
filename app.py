@@ -13,9 +13,7 @@ from email.mime.text import MIMEText
 
 # --- [내장 API 키 설정] ---
 
-GMAIL_ADDRESS = "projectmagicalendar@gmail.com"
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
-GMAIL_APP_PASSWORD = st.secrets["GMAIL_APP_PASSWORD"]
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 
 from google.oauth2.service_account import Credentials
