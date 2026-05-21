@@ -17,7 +17,7 @@ TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 
 from google.oauth2.service_account import Credentials
 
-# --- ]spread sheet 불러오기] ---
+# --- [spread sheet 불러오기] ---
 def get_sheets_client():
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
