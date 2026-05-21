@@ -11,13 +11,14 @@ from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
-# --- [내장 API 키 설정] ---
+# --- [내장 API 키 설정] --- 
 
 GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
 TELEGRAM_BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
 
 from google.oauth2.service_account import Credentials
 
+# --- ]spread sheet 불러오기] ---
 def get_sheets_client():
     creds = Credentials.from_service_account_info(
         st.secrets["gcp_service_account"],
@@ -27,7 +28,8 @@ def get_sheets_client():
         ]
     )
     return gspread.authorize(creds)
-
+    
+# --- [google spread sheet에 알림 보낼 내용 저장] ---
 def save_alarm_to_sheets(email, chat_id, event, alarm_dt):
     client = get_sheets_client()
     sheet = client.open_by_key(st.secrets["SHEETS_ID"]).sheet1
@@ -45,6 +47,7 @@ def save_alarm_to_sheets(email, chat_id, event, alarm_dt):
 
 import threading
 
+# --- [텔레그램 /myid 명령어 코드 봇 활성화] ---
 def run_bot():
     offset = 0
     while True:
@@ -87,7 +90,7 @@ start_bot_once()
 
 st.set_page_config(page_title="✨ MagiCalendar", layout="wide")
 
-# --- UI Compact Styling ---
+# --- UI 스타일 ---
 st.markdown("""
 <style>
     /* 위아래 간격 줄이기 */
@@ -154,7 +157,7 @@ st.sidebar.markdown(
     """,
     unsafe_allow_html=True
 )
-# --- Main ---
+# --- gemini 불러오기 및 프롬포트 ---
 st.title("✨MagiCalendar : AI 일정 관리")
 uploaded_file = st.file_uploader("📂 카카오톡 대화내역 CSV 업로드", type="csv")
 
@@ -326,7 +329,7 @@ if st.session_state.events:
             st.write(", ".join([f"`{k}`" for k in keywords]))
         else: st.caption("발견된 키워드가 없습니다.")
 
-    # 섹션 4: 다운로드
+    # 섹션 4: 요약본 다운로드
     summary_txt = f"================================\n✨ MagiCalendar 요약본\n분석 날짜: {datetime.now().strftime('%Y-%m-%d')}\n================================\n\n"
     summary_txt += f"[📅 발견된 일정 {len(st.session_state.events)}개]\n"
     for i, ev in enumerate(st.session_state.events):
