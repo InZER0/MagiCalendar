@@ -1,5 +1,4 @@
 import os
-
 import streamlit as st
 import google.generativeai as genai
 import pandas as pd
@@ -139,24 +138,56 @@ st.sidebar.markdown(
 )
 
 st.sidebar.divider()
+with st.sidebar:
 
-# 하단 정보 섹션 (중앙 정렬 유지)
-st.sidebar.markdown(
-    """
-    <div style="
-        background-color: rgba(28, 131, 225, 0.1);
-        color: #004280;
-        padding: 10px;
-        border-radius: 5px;
-        text-align: center;
-        font-size: 18px;
-        font-weight: bold
-    ">
-        인공지능과디지털사고 (054)
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+    # 1. 사이드바 타이틀 중앙 정렬
+    st.markdown(
+        """
+        <div style="text-align: center; font-size: 12px">
+            <h3 style="margin-bottom: 4px;">📢 테스트용 샘플 파일 다운로드</h3>
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    for _ in range(6): st.write("")
+    presentation_data = {
+        'Date': [
+            '2026-06-04 10:05:04', '2026-06-04 10:05:06', '2026-06-04 10:05:24', 
+            '2026-06-04 10:14:32', '2026-06-04 10:15:37', '2026-06-04 10:15:58'
+        ],
+        'User': ['홍인영', '홍인영', '홍인영', '홍인영', '홍인영', '홍인영'],
+        'Message': [
+            '길동이 전화번호는 010-1234-5678이야',
+            '길동이 메일은 gildong@magicalendar.cloud야'
+            'www.pnupcbang.co.kr 사이트에서 회원가입을 미리 해야돼 ',
+            '6월 4일 오후 1시 30분에 나랑 길동이랑 pc방에 가서 롤할거야',
+            '6월 4일 오후 1시 10분에는 길동이랑 부산밀면 집에서 밀면 먹을거야',
+            "6월 4일 오후 2시에는 해운대 CGV에서 '왕과사는남자' 영화를 나 혼자 볼거야",
+            '그리고 나는 6월 5일 오전 10시에 일어나야돼'
+        ]
+    }
+    
+    sample_df = pd.DataFrame(presentation_data)
+    csv_bytes = sample_df.to_csv(index=False).encode('utf-8-sig')
+
+    # 2. 사이드바 내부 공간을 [왼쪽 여백(1), 가운데 버튼(2), 오른쪽 여백(1)] 비율로 쪼개기
+    col1, col2, col3 = st.columns([1, 2.8, 1])
+    
+    # 3. 정중앙인 col2(가운데 칸)에 다운로드 버튼을 쏙 넣기
+    with col2:
+
+    # 다운로드 버튼 배치 (위의 CSS 덕분에 자동으로 가운데로 정렬됩니다)
+    # 다운로드 버튼 배치 (help 가이드를 물음표 툴팁으로 처리)
+        st.download_button(
+            label="📥 샘플 다운로드",
+            data=csv_bytes,
+            file_name="테스트용_샘플.csv",
+            mime="text/csv",
+            help="직접 테스트해보고 싶으신 분들은 샘플 파일을 다운로드한 후, 메인 화면의 업로드 창에 넣어보세요!"
+        )
+    st.markdown("---")
+
+
 # --- gemini 불러오기 및 프롬포트 ---
 st.title("✨MagiCalendar : AI 일정 관리")
 uploaded_file = st.file_uploader("📂 카카오톡 대화내역 CSV 업로드", type="csv")
@@ -356,9 +387,14 @@ if st.session_state.events:
     else: summary_txt += "  - 발견된 키워드가 없습니다.\n"
 
     summary_txt += f"\n[💬 전체 요약]\n{m.get('global_summary', '요약 정보 없음')}\n================================\n"
-
+    for _ in range(1): st.write("")
+    st.divider()
+    
     st.subheader("📋 분석 요약본")
     st.code(summary_txt, language=None)
+    
+    for _ in range(1): st.write("")
+    st.divider()
     st.download_button("📄 요약본 TXT 다운로드", data=summary_txt.encode('utf-8-sig'), file_name=f"summary_{datetime.now().strftime('%Y%m%d')}.txt")
 
     st.subheader("📬 알림 등록")
@@ -369,31 +405,10 @@ if st.session_state.events:
     target_email = ""
     telegram_chat_id = ""
 
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
+    for _ in range(8): st.write("")
     # 1. 이메일 알림 섹션
     use_email = st.checkbox("📧 이메일 알림", value=False, key="use_email_checkbox")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
+    for _ in range(15): st.write("")
 
     if use_email:
         # 입력란 너비를 반으로 줄이기 위해 내부 컬럼 사용
@@ -404,66 +419,19 @@ if st.session_state.events:
                 placeholder="예: abc@gmail.com, def@naver.com",
                 help="여러 명에게 보내려면 쉼표(,)로 구분해서 입력하세요",
                 key="target_email_input")
-    st.write("") # 섹션 간 간격
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
+    for _ in range(15): st.write("")
 ## 2. 텔레그램 알림 섹션
     use_telegram = st.checkbox("💬 텔레그램 알림", value=False, key="use_telegram_checkbox")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
-    st.write("")
+    for _ in range(10): st.write("")
     if use_telegram:
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
+        for _ in range(10): st.write("")
 
     # Chat ID 입력란 (요청하신 변수명 TELEGRAM_CHAT_ID 사용)
         col_chatid_half, _ = st.columns([1, 2])
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
-        st.write("")
+        for _ in range(11): st.write("")
         with col_chatid_half:
             telegram_chat_id = st.text_input("Chat ID 입력", key="tg_chatid_input")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
-            st.write("")
+            for _ in range(11): st.write("")
             if not telegram_chat_id:
                 # 상세 방법 (입력 시 이 부분 전체가 사라짐)
                 with st.expander("🔍 Chat ID 얻는 방법 확인하기"):
