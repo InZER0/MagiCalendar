@@ -1,3 +1,4 @@
+# 패키지 및 모듈 설치
 streamlit
 google-generativeai
 pandas
