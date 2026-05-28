@@ -1,3 +1,4 @@
+#서버 구동을 위한 파일
 {
   "name": "Python 3",
   // Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
