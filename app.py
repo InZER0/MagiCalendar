@@ -128,11 +128,6 @@ st.sidebar.markdown(
     </div>
     <div style="text-align: left; font-size: 17px; font-weight: bold; line-height: 2.5; padding-left: 5px;">
         💻첨단융합학부 202670690 홍인영<br>
-        🛠️첨단융합학부 202670643 이준성<br>
-    <div>
-    <div style="text-align: left; font-size: 16px; font-weight: bold; line-height: 2.5; padding-left: 2px;">
-        💡첨단IT자율전공 202628176 이혁준
-    </div>
     """,
     unsafe_allow_html=True
 )
