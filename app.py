@@ -124,7 +124,7 @@ st.sidebar.divider()
 st.sidebar.markdown(
     """
     <div style="text-align: center; font-size: 29px; font-weight: bold; margin-bottom: 15px;">
-        ⚙️Developers
+        ⚙️Developer
     </div>
     <div style="text-align: left; font-size: 17px; font-weight: bold; line-height: 2.5; padding-left: 5px;">
         💻첨단융합학부 202670690 홍인영<br>
