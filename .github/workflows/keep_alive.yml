@@ -1,0 +1,26 @@
+name: Streamlit Keep Alive
+
+on:
+  schedule:
+    # 매 11시간마다 자동으로 실행 (넉넉하게 스트림릿이 잠들기 전에 깨웁니다)
+    - cron: '0 */11 * * *'
+  workflow_dispatch: # 수동으로도 실행해볼 수 있도록 버튼을 활성화합니다.
+
+jobs:
+  ping-repo:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    - name: Update Ping File
+      run: |
+        echo "Last pinged on: $(date)" > ping.txt
+
+    - name: Commit and Push Changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add ping.txt
+        git commit -m "chore: keep alive streamlit cloud [skip ci]" || echo "No changes to commit"
+        git push
