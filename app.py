@@ -112,7 +112,7 @@ if 'selected_notifications' not in st.session_state: st.session_state.selected_n
 
 st.sidebar.markdown(
     """
-    <h1 style='text-align: center; font-size: 35px; font-weight: bold;adding-left: 5px;'>
+    <h1 style='text-align: center; font-size: 30px; font-weight: bold;adding-left: 5px;'>
         ✨MagiCalendar
     </h1>
     """,
