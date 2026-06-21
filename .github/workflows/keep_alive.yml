@@ -1,26 +1,27 @@
-name: Streamlit Keep Alive
+# .github/workflows/keep_alive.yml
+name: 24/7 Keep Alive Bot
 
 on:
   schedule:
-    # 매 11시간마다 자동으로 실행 (넉넉하게 스트림릿이 잠들기 전에 깨웁니다)
-    - cron: '0 */11 * * *'
-  workflow_dispatch: # 수동으로도 실행해볼 수 있도록 버튼을 활성화합니다.
+    - cron: '0 */11 * * *' # 11시간마다 자동으로 실행
 
 jobs:
-  ping-repo:
+  ping_and_commit:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout Repository
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
 
-    - name: Update Ping File
-      run: |
-        echo "Last pinged on: $(date)" > ping.txt
+    # [단계 1] 스트림릿 서버에 핑(노크) 날리기
+    - name: Send Ping to Streamlit
+      run: curl -I https://인영님의-스트림릿-앱-주소.streamlit.app
 
-    - name: Commit and Push Changes
+    # [단계 2] 텍스트 파일 하나를 수정해서 가짜 커밋 만들기 (Hot Reload 유도)
+    - name: Generate Fake Commit for Hot Reload
       run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git add ping.txt
-        git commit -m "chore: keep alive streamlit cloud [skip ci]" || echo "No changes to commit"
+        echo "Last check: $(date)" > keep_alive.txt
+        git config --global user.name "GitHub Action Bot"
+        git config --global user.email "action@github.com"
+        git add keep_alive.txt
+        git commit -m "Chore: Keep server active via Hot Reload [skip ci]" || echo "No changes"
         git push
