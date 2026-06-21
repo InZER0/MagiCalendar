@@ -1,27 +1,14 @@
-# .github/workflows/keep_alive.yml
-name: 24/7 Keep Alive Bot
-
+name: Streamlit Keep Alive
 on:
   schedule:
-    - cron: '0 */11 * * *' # 11시간마다 자동으로 실행
+    - cron: '0 */6 * * *'  # 6시간마다 (11시간은 너무 길어요)
+  workflow_dispatch:
 
 jobs:
-  ping_and_commit:
+  ping-app:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-
-    # [단계 1] 스트림릿 서버에 핑(노크) 날리기
-    - name: Send Ping to Streamlit
-      run: curl -I https://인영님의-스트림릿-앱-주소.streamlit.app
-
-    # [단계 2] 텍스트 파일 하나를 수정해서 가짜 커밋 만들기 (Hot Reload 유도)
-    - name: Generate Fake Commit for Hot Reload
-      run: |
-        echo "Last check: $(date)" > keep_alive.txt
-        git config --global user.name "GitHub Action Bot"
-        git config --global user.email "action@github.com"
-        git add keep_alive.txt
-        git commit -m "Chore: Keep server active via Hot Reload [skip ci]" || echo "No changes"
-        git push
+      - name: Ping Streamlit App
+        run: |
+          curl -sS https://magicalendar.streamlit.app/ -o /dev/null
+          echo "Pinged at $(date)"
