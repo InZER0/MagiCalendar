@@ -1,14 +1,48 @@
 name: Streamlit Keep Alive
 on:
   schedule:
-    - cron: '0 */6 * * *'  # 6시간마다 (11시간은 너무 길어요)
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 
 jobs:
-  ping-app:
+  wake-app:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Streamlit App
+      - name: Setup Chrome
+        uses: browser-actions/setup-chrome@latest
+
+      - name: Install Selenium
+        run: pip install selenium
+
+      - name: Wake Streamlit App
         run: |
-          curl -sS https://magicalendar.streamlit.app/ -o /dev/null
-          echo "Pinged at $(date)"
+          python - <<EOF
+          from selenium import webdriver
+          from selenium.webdriver.chrome.options import Options
+          from selenium.webdriver.common.by import By
+          from selenium.webdriver.support.ui import WebDriverWait
+          from selenium.webdriver.support import expected_conditions as EC
+          import time
+
+          options = Options()
+          options.add_argument('--headless')
+          options.add_argument('--no-sandbox')
+          options.add_argument('--disable-dev-shm-usage')
+
+          driver = webdriver.Chrome(options=options)
+          driver.get('https://magicalendar.streamlit.app')
+          
+          try:
+              btn = WebDriverWait(driver, 30).until(
+                  EC.element_to_be_clickable((By.XPATH, 
+                  "//button[contains(text(), 'get this app back up')]"))
+              )
+              btn.click()
+              print("앱 잠들어 있어서 깨우는 중...")
+          except:
+              print("앱 이미 깨어있음!")
+          
+          time.sleep(90)
+          driver.quit()
+          print("완료!")
+          EOF
